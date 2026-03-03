@@ -789,6 +789,20 @@ kbd {
     cursor: default;
 }
 
+/* ===== Demo Banner ===== */
+.demo-banner {
+    background: linear-gradient(135deg, #e85d04, #dc3545);
+    color: #fff;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    letter-spacing: 0.3px;
+}
+
 /* ===== Amount Colors ===== */
 .amount-positive { color: var(--success); }
 .amount-negative { color: var(--danger); }

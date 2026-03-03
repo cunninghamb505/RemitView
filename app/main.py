@@ -13,11 +13,24 @@ app = FastAPI(title=APP_NAME, version=APP_VERSION)
 @app.on_event("startup")
 async def startup():
     init_db()
+    # In demo mode, auto-load sample data if DB is empty
+    if app_settings.DEMO_MODE:
+        from app.services import file_service
+        existing = file_service.list_files()
+        if not existing:
+            from app.parser.sample_835 import SAMPLES
+            for filename, content in SAMPLES:
+                file_service.parse_and_store(content, filename)
 
 # App info endpoint
 @app.get("/api/info")
 async def app_info():
-    return {"name": APP_NAME, "version": APP_VERSION, "author": APP_AUTHOR}
+    return {
+        "name": APP_NAME,
+        "version": APP_VERSION,
+        "author": APP_AUTHOR,
+        "demo": app_settings.DEMO_MODE,
+    }
 
 # Mount API routers
 app.include_router(files.router)

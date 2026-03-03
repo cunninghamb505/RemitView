@@ -2,8 +2,10 @@
 const FilesPage = {
     async render() {
         const content = document.getElementById('app-content');
+        const isDemo = window._demoMode || false;
         content.innerHTML = `
             <h2 style="margin-bottom: 16px;">Files</h2>
+            ${isDemo ? '' : `
             <div class="card" style="margin-bottom: 24px;">
                 <div class="card-header">
                     <span class="card-title">Upload 835 File</span>
@@ -17,7 +19,7 @@ const FilesPage = {
                     </div>
                     <input type="file" id="file-input" hidden accept=".835,.edi,.txt,.x12,.pdf">
                 </div>
-            </div>
+            </div>`}
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Loaded Files</span>
@@ -28,13 +30,14 @@ const FilesPage = {
             </div>
         `;
 
-        this.bindEvents();
+        if (!isDemo) this.bindEvents();
         await this.loadFiles();
     },
 
     bindEvents() {
         const zone = document.getElementById('upload-zone');
         const input = document.getElementById('file-input');
+        if (!zone || !input) return;
 
         zone.addEventListener('click', () => input.click());
 
@@ -116,7 +119,7 @@ const FilesPage = {
                         <div class="btn-group">
                             <button class="btn btn-outline btn-sm" data-export-excel="${f.id}" title="Export Excel">Excel</button>
                             <button class="btn btn-outline btn-sm" data-export-pdf="${f.id}" title="Export PDF Report">PDF</button>
-                            <button class="btn btn-danger btn-sm" data-delete-id="${f.id}">Delete</button>
+                            ${window._demoMode ? '' : `<button class="btn btn-danger btn-sm" data-delete-id="${f.id}">Delete</button>`}
                         </div>
                     </div>
                 `;

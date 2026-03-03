@@ -37,6 +37,7 @@ class Settings:
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10 MB
     IS_FROZEN: bool = _is_frozen()
     BASE_DIR: Path = _get_base_dir()
+    DEMO_MODE: bool = os.getenv("DEMO_MODE", "").lower() in ("true", "1", "yes")
 
 
 settings = Settings()

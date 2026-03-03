@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: remitview-demo
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: EDI_HOST
+        value: "0.0.0.0"
+      - key: PYTHON_VERSION
+        value: "3.13"
+    plan: free

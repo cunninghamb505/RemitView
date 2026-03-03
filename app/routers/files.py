@@ -12,6 +12,8 @@ router = APIRouter(prefix="/api/files", tags=["files"])
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     """Upload and parse an 835 file (EDI or PDF)."""
+    if settings.DEMO_MODE:
+        raise HTTPException(status_code=403, detail="Uploads disabled in demo mode")
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -54,6 +56,8 @@ async def upload_file(file: UploadFile = File(...)):
 @router.post("/upload-837")
 async def upload_837(file: UploadFile = File(...)):
     """Upload an 837 claim file and match against existing 835 data."""
+    if settings.DEMO_MODE:
+        raise HTTPException(status_code=403, detail="Uploads disabled in demo mode")
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -97,6 +101,8 @@ async def list_files():
 @router.delete("/{file_id}")
 async def delete_file(file_id: int):
     """Delete a file and all its data."""
+    if settings.DEMO_MODE:
+        raise HTTPException(status_code=403, detail="Deleting files disabled in demo mode")
     deleted = file_service.delete_file(file_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="File not found")

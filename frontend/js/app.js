@@ -131,11 +131,25 @@ const App = {
     async loadVersionInfo() {
         try {
             const info = await API.getJSON('/api/info');
+            window._demoMode = info.demo || false;
             const el = document.getElementById('app-version-info');
             if (el) {
                 el.textContent = `${info.name} v${info.version} — by ${info.author}`;
             }
+            if (info.demo) {
+                this.showDemoBanner();
+            }
         } catch (_) {}
+    },
+
+    showDemoBanner() {
+        const banner = document.createElement('div');
+        banner.className = 'demo-banner';
+        banner.innerHTML = 'DEMO MODE — Pre-loaded sample data. Uploads and edits are disabled. '
+            + '<a href="https://github.com/cunninghamb505/RemitView" target="_blank" style="color: #fff; text-decoration: underline;">Get the full version on GitHub</a>';
+        document.body.insertBefore(banner, document.body.firstChild);
+        // Adjust header position
+        document.querySelector('.app-header').style.top = '36px';
     },
 
     async route() {

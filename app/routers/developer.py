@@ -1,6 +1,7 @@
 """Developer view — inspect and edit raw inbound file content."""
 from fastapi import APIRouter, HTTPException
 from app.services import file_service
+from app.config import settings
 
 router = APIRouter(prefix="/api/developer", tags=["developer"])
 
@@ -27,6 +28,8 @@ async def update_raw_content(file_id: int, body: dict):
 
     Body: { "raw_content": "ISA*00*..." }
     """
+    if settings.DEMO_MODE:
+        raise HTTPException(status_code=403, detail="Editing disabled in demo mode")
     raw = body.get("raw_content", "")
     if not raw:
         raise HTTPException(status_code=400, detail="raw_content is required")
