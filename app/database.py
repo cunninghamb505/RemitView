@@ -157,12 +157,29 @@ CREATE INDEX IF NOT EXISTS idx_flags_claim_id ON claim_flags(claim_id);
 """
 
 
+def _migrate(conn: sqlite3.Connection):
+    """Add columns that may be missing from older databases."""
+    # Check existing columns on edi_files
+    cursor = conn.execute("PRAGMA table_info(edi_files)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+
+    migrations = [
+        ("edi_files", "source_type", "TEXT DEFAULT 'edi'"),
+        ("edi_files", "pdf_parsing_notes", "TEXT"),
+    ]
+
+    for table, col, col_def in migrations:
+        if col not in existing_cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}")
+
+
 def init_db():
     """Initialize the database with the schema."""
     conn = sqlite3.connect(settings.DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     # Insert default settings if not present
     conn.execute("""
         INSERT OR IGNORE INTO app_settings (key, value) VALUES ('underpayment_threshold', '70')

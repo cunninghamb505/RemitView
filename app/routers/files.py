@@ -2,7 +2,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services import file_service
 from app.services.claim_matching_service import import_837_and_match
-from app.parser.sample_835 import SAMPLE_835
+from app.parser.sample_835 import SAMPLES
 from app.parser.pdf_parser import parse_pdf_remittance
 from app.config import settings
 
@@ -75,13 +75,16 @@ async def upload_837(file: UploadFile = File(...)):
 
 @router.post("/load-sample")
 async def load_sample():
-    """Load the built-in sample 835 file."""
+    """Load built-in sample 835 files (3 different payers)."""
+    file_ids = []
     try:
-        file_id = file_service.parse_and_store(SAMPLE_835, "sample_835.edi")
+        for filename, content in SAMPLES:
+            file_id = file_service.parse_and_store(content, filename)
+            file_ids.append(file_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading sample: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error loading samples: {str(e)}")
 
-    return {"message": "Sample file loaded successfully", "id": file_id}
+    return {"message": f"{len(file_ids)} sample files loaded successfully", "ids": file_ids}
 
 
 @router.get("")
