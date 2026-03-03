@@ -1,11 +1,22 @@
-/* Claim detail page — full drilldown with service lines and adjustments */
+/* Claim detail page — full drilldown with service lines, adjustments, and flags */
 const ClaimDetailPage = {
     async render(claimId) {
         const content = document.getElementById('app-content');
         content.innerHTML = '<div class="loading-spinner">Loading claim...</div>';
 
         try {
-            const claim = await API.getClaim(claimId);
+            const [claim, flagsData, settings] = await Promise.all([
+                API.getClaim(claimId),
+                API.getJSON(`/api/flags?claim_id=${claimId}`),
+                API.getJSON('/api/settings'),
+            ]);
+
+            const flags = flagsData.flags || [];
+            const threshold = parseFloat(settings.underpayment_threshold || '70');
+            const charges = claim.clp_total_charge || 0;
+            const payment = claim.clp_total_payment || 0;
+            const paymentRate = charges > 0 ? (payment / charges * 100) : 100;
+            const isUnderpaid = charges > 0 && paymentRate < threshold;
 
             let html = `
                 <a href="#/claims" class="back-link">&larr; Back to Claims</a>
@@ -15,13 +26,17 @@ const ClaimDetailPage = {
                         <span class="card-title">Claim ${this.esc(claim.clp_claim_id)}</span>
                         <div class="btn-group">
                             ${this.statusBadge(claim.clp_status_code)}
+                            ${isUnderpaid ? '<span class="badge badge-warning">UNDERPAID</span>' : ''}
+                            <button class="btn btn-outline btn-sm" id="flag-claim-btn">Flag</button>
                             <button class="btn btn-outline btn-sm" id="export-claim-btn">Export CSV</button>
+                            <button class="btn btn-outline btn-sm" id="export-claim-pdf-btn">PDF</button>
                         </div>
                     </div>
                     <div class="detail-header">
                         ${this.field('Status', `${claim.clp_status_code} - ${claim.status_description}`)}
                         ${this.field('Total Charge', `$${this.fmt(claim.clp_total_charge)}`)}
                         ${this.field('Total Payment', `$${this.fmt(claim.clp_total_payment)}`)}
+                        ${isUnderpaid ? this.field('Payment Rate', `${paymentRate.toFixed(1)}% (threshold: ${threshold}%)`) : ''}
                         ${this.field('Patient', claim.patient_name || 'N/A')}
                         ${this.field('Patient ID', claim.patient_id || 'N/A')}
                         ${this.field('Provider', claim.rendering_provider_name || 'N/A')}
@@ -35,6 +50,29 @@ const ClaimDetailPage = {
                     </div>
                 </div>
             `;
+
+            // Flags section
+            if (flags.length > 0) {
+                html += `<div class="card" style="margin-bottom: 24px;">
+                    <div class="section-title" style="margin-top: 0;">Flags (${flags.length})</div>
+                    <div class="table-wrapper"><table><thead><tr>
+                        <th>Type</th><th>Note</th><th>Created</th><th>Status</th><th>Actions</th>
+                    </tr></thead><tbody>`;
+                for (const f of flags) {
+                    const resolved = !!f.resolved_at;
+                    html += `<tr>
+                        <td><span class="badge ${resolved ? 'badge-success' : 'badge-warning'}">${this.esc(f.flag_type)}</span></td>
+                        <td>${this.esc(f.note)}</td>
+                        <td>${f.created_at || ''}</td>
+                        <td>${resolved ? 'Resolved' : 'Open'}</td>
+                        <td>
+                            ${!resolved ? `<button class="btn btn-sm btn-primary" data-resolve-flag="${f.id}">Resolve</button>` : ''}
+                            <button class="btn btn-sm btn-danger" data-delete-flag="${f.id}">Delete</button>
+                        </td>
+                    </tr>`;
+                }
+                html += '</tbody></table></div></div>';
+            }
 
             // Claim-level adjustments
             if (claim.adjustments && claim.adjustments.length > 0) {
@@ -73,7 +111,6 @@ const ClaimDetailPage = {
                         <td class="text-mono">${this.esc(svc.control_number)}</td>
                     </tr>`;
 
-                    // Service-level adjustments
                     if (svc.adjustments && svc.adjustments.length > 0) {
                         html += `<tr><td colspan="7" style="padding: 0 0 0 32px; background: var(--bg-primary);">
                             <div style="padding: 8px 0;">
@@ -92,25 +129,124 @@ const ClaimDetailPage = {
             html += '</div>';
             content.innerHTML = html;
 
-            // Export button
-            document.getElementById('export-claim-btn').addEventListener('click', async () => {
-                try {
-                    const blob = await API.exportClaims(claim.file_id);
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `claim_${claim.clp_claim_id}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    Toast.success('CSV exported');
-                } catch (err) {
-                    Toast.error(err.message);
-                }
-            });
+            this.bindEvents(claimId, claim);
 
         } catch (err) {
             content.innerHTML = `<div class="empty-state"><div class="empty-state-text">Error: ${err.message}</div></div>`;
         }
+    },
+
+    bindEvents(claimId, claim) {
+        // Flag button
+        document.getElementById('flag-claim-btn').addEventListener('click', () => {
+            this.showFlagModal(claimId);
+        });
+
+        // Export button
+        document.getElementById('export-claim-btn').addEventListener('click', async () => {
+            try {
+                const blob = await API.exportClaims(claim.file_id);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `claim_${claim.clp_claim_id}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                Toast.success('CSV exported');
+            } catch (err) {
+                Toast.error(err.message);
+            }
+        });
+
+        // PDF export button
+        document.getElementById('export-claim-pdf-btn').addEventListener('click', async () => {
+            try {
+                const resp = await API.request(`/api/export/pdf/claim/${claimId}`);
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `claim_${claim.clp_claim_id}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+                Toast.success('PDF exported');
+            } catch (err) {
+                Toast.error(err.message);
+            }
+        });
+
+        // Resolve flag buttons
+        document.querySelectorAll('[data-resolve-flag]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await API.request(`/api/flags/${btn.dataset.resolveFlag}/resolve`, { method: 'PATCH' });
+                    Toast.success('Flag resolved');
+                    await this.render(claimId);
+                } catch (err) { Toast.error(err.message); }
+            });
+        });
+
+        // Delete flag buttons
+        document.querySelectorAll('[data-delete-flag]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await API.request(`/api/flags/${btn.dataset.deleteFlag}`, { method: 'DELETE' });
+                    Toast.success('Flag deleted');
+                    await this.render(claimId);
+                } catch (err) { Toast.error(err.message); }
+            });
+        });
+    },
+
+    showFlagModal(claimId) {
+        const overlay = document.getElementById('modal-overlay');
+        overlay.innerHTML = `
+            <div class="modal">
+                <div class="modal-title">Flag Claim</div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; display: block; margin-bottom: 4px;">Flag Type:</label>
+                        <select id="flag-type-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary);">
+                            <option value="review">Review</option>
+                            <option value="underpaid">Underpaid</option>
+                            <option value="denied">Denied</option>
+                            <option value="appeal">Appeal</option>
+                            <option value="follow-up">Follow Up</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85rem; display: block; margin-bottom: 4px;">Note:</label>
+                        <textarea id="flag-note-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); font-family: var(--font); resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="flag-cancel-btn">Cancel</button>
+                    <button class="btn btn-primary" id="flag-save-btn">Add Flag</button>
+                </div>
+            </div>
+        `;
+        overlay.classList.remove('hidden');
+
+        document.getElementById('flag-cancel-btn').addEventListener('click', () => {
+            overlay.classList.add('hidden');
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.add('hidden');
+        });
+
+        document.getElementById('flag-save-btn').addEventListener('click', async () => {
+            const flagType = document.getElementById('flag-type-select').value;
+            const note = document.getElementById('flag-note-input').value;
+            try {
+                await API.postJSON('/api/flags', { claim_id: parseInt(claimId), flag_type: flagType, note });
+                overlay.classList.add('hidden');
+                Toast.success('Flag added');
+                await this.render(claimId);
+            } catch (err) {
+                Toast.error(err.message);
+            }
+        });
     },
 
     renderAdjustments(adjustments) {

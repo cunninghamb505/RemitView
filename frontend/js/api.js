@@ -30,6 +30,15 @@ const API = {
         return resp.json();
     },
 
+    async putJSON(url, body) {
+        const resp = await this.request(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        return resp.json();
+    },
+
     // Files
     async uploadFile(file) {
         const form = new FormData();

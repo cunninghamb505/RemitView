@@ -21,4 +21,5 @@ env/
 .DS_Store
 Thumbs.db
 uploads/
+*.spec
 .claude/

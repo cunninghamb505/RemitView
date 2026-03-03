@@ -24,6 +24,25 @@ def parse_and_store(raw_content: str, filename: str) -> int:
         db.close()
 
 
+def parse_and_store_parsed(parsed: dict, filename: str, source_type: str = "edi", pdf_notes: str = "") -> int:
+    """Store pre-parsed data (e.g., from PDF parser) in the database.
+
+    Returns the file ID.
+    """
+    db = get_db()
+    try:
+        file_id = _store_file(db, parsed, filename, source_type=source_type, pdf_notes=pdf_notes)
+        _store_claims(db, file_id, parsed["claims"])
+        _store_provider_adjustments(db, file_id, parsed.get("provider_adjustments", []))
+        db.commit()
+        return file_id
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def list_files() -> list[dict]:
     """List all loaded files with claim counts."""
     db = get_db()
@@ -51,7 +70,7 @@ def delete_file(file_id: int) -> bool:
         db.close()
 
 
-def _store_file(db: sqlite3.Connection, parsed: dict, filename: str) -> int:
+def _store_file(db: sqlite3.Connection, parsed: dict, filename: str, source_type: str = "edi", pdf_notes: str = "") -> int:
     """Store file envelope and header data."""
     env = parsed["envelope"]
     hdr = parsed["header"]
@@ -65,8 +84,9 @@ def _store_file(db: sqlite3.Connection, parsed: dict, filename: str) -> int:
             bpr_transaction_type, bpr_amount, bpr_credit_debit, bpr_payment_method, bpr_payment_date,
             trn_reference, trn_originator,
             payer_name, payer_id, payee_name, payee_id, payee_npi,
-            contact_name, contact_phone, contact_email
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            contact_name, contact_phone, contact_email,
+            source_type, pdf_parsing_notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         filename,
         env.get("sender_id", ""),
@@ -93,6 +113,8 @@ def _store_file(db: sqlite3.Connection, parsed: dict, filename: str) -> int:
         hdr.get("contact_name", ""),
         hdr.get("contact_phone", ""),
         hdr.get("contact_email", ""),
+        source_type,
+        pdf_notes,
     ))
     return cursor.lastrowid
 

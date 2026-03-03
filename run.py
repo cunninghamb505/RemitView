@@ -1,4 +1,4 @@
-"""Entry point for 835-Cycler application."""
+"""Entry point for RemitView application."""
 import uvicorn
 from app.config import settings
 

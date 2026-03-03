@@ -110,6 +110,29 @@ body {
     color: var(--accent);
 }
 
+.header-search {
+    margin-left: auto;
+    margin-right: 12px;
+}
+
+.header-search input {
+    width: 220px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: var(--font);
+}
+
+.header-search input:focus {
+    border-color: var(--accent);
+    outline: none;
+    width: 300px;
+    transition: width 0.2s;
+}
+
 .theme-toggle {
     background: none;
     border: 1px solid var(--border-color);
@@ -693,6 +716,36 @@ select:focus {
     .detail-header {
         grid-template-columns: repeat(2, 1fr);
     }
+}
+
+/* ===== Chart Containers ===== */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* ===== Footer ===== */
+.app-footer {
+    text-align: center;
+    padding: 16px 24px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
+    margin-top: 32px;
+}
+
+/* ===== Keyboard Shortcut Keys ===== */
+kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    box-shadow: 0 1px 0 var(--border-color);
+    margin-right: 4px;
 }
 
 /* ===== Amount Colors ===== */

@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>835-Cycler</title>
+    <title>RemitView</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <header class="app-header">
         <div class="header-left">
-            <h1 class="app-title">835-Cycler</h1>
-            <span class="app-subtitle">EDI Remittance Viewer</span>
+            <h1 class="app-title">RemitView</h1>
         </div>
         <nav class="main-nav">
             <a href="#/files" class="nav-link" data-page="files">Files</a>
             <a href="#/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
             <a href="#/claims" class="nav-link" data-page="claims">Claims</a>
-            <a href="#/codes" class="nav-link" data-page="codes">Code Lookup</a>
+            <a href="#/analytics" class="nav-link" data-page="analytics">Analytics</a>
+            <a href="#/compare" class="nav-link" data-page="compare">Compare</a>
+            <a href="#/codes" class="nav-link" data-page="codes">Codes</a>
+            <a href="#/settings" class="nav-link" data-page="settings">Settings</a>
         </nav>
+        <div class="header-search">
+            <input type="search" id="global-search" placeholder="Search claims, patients... ( / )" autocomplete="off">
+        </div>
         <button id="theme-toggle" class="theme-toggle" title="Toggle theme">
             <span class="theme-icon-light">&#9788;</span>
             <span class="theme-icon-dark">&#9790;</span>
@@ -28,19 +33,30 @@
         <div class="loading-spinner">Loading...</div>
     </main>
 
+    <footer class="app-footer">
+        <span id="app-version-info"></span>
+    </footer>
+
     <div id="toast-container" class="toast-container"></div>
     <div id="modal-overlay" class="modal-overlay hidden"></div>
 
+    <script src="/js/lib/chart.min.js"></script>
     <script src="/js/components/toast.js"></script>
     <script src="/js/components/modal.js"></script>
     <script src="/js/components/table.js"></script>
     <script src="/js/components/filters.js"></script>
+    <script src="/js/components/chart.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/pages/files.js"></script>
     <script src="/js/pages/dashboard.js"></script>
     <script src="/js/pages/claims.js"></script>
     <script src="/js/pages/claim-detail.js"></script>
     <script src="/js/pages/code-lookup.js"></script>
+    <script src="/js/pages/analytics.js"></script>
+    <script src="/js/pages/settings.js"></script>
+    <script src="/js/pages/file-compare.js"></script>
+    <script src="/js/pages/api-keys.js"></script>
+    <script src="/js/pages/search-results.js"></script>
     <script src="/js/app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* Files page — upload, sample loading, file list */
+/* Files page — upload, sample loading, file list with export options */
 const FilesPage = {
     async render() {
         const content = document.getElementById('app-content');
@@ -13,9 +13,9 @@ const FilesPage = {
                     <div class="upload-zone-icon">&#128196;</div>
                     <div class="upload-zone-text">
                         <strong>Click to upload</strong> or drag and drop<br>
-                        EDI X12 835 files (.835, .edi, .txt)
+                        EDI X12 835 files (.835, .edi, .txt) or PDF remittances (.pdf)
                     </div>
-                    <input type="file" id="file-input" hidden accept=".835,.edi,.txt,.x12">
+                    <input type="file" id="file-input" hidden accept=".835,.edi,.txt,.x12,.pdf">
                 </div>
             </div>
             <div class="card">
@@ -113,7 +113,11 @@ const FilesPage = {
                                 <span>${f.uploaded_at}</span>
                             </div>
                         </div>
-                        <button class="btn btn-danger btn-sm" data-delete-id="${f.id}">Delete</button>
+                        <div class="btn-group">
+                            <button class="btn btn-outline btn-sm" data-export-excel="${f.id}" title="Export Excel">Excel</button>
+                            <button class="btn btn-outline btn-sm" data-export-pdf="${f.id}" title="Export PDF Report">PDF</button>
+                            <button class="btn btn-danger btn-sm" data-delete-id="${f.id}">Delete</button>
+                        </div>
                     </div>
                 `;
             }
@@ -137,6 +141,46 @@ const FilesPage = {
                             }
                         }
                     );
+                });
+            });
+
+            // Bind Excel export buttons
+            container.querySelectorAll('[data-export-excel]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.exportExcel;
+                    try {
+                        const resp = await API.request(`/api/export/excel?file_id=${id}`);
+                        const blob = await resp.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `remitview_export_${id}.xlsx`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        Toast.success('Excel exported');
+                    } catch (err) {
+                        Toast.error(err.message);
+                    }
+                });
+            });
+
+            // Bind PDF export buttons
+            container.querySelectorAll('[data-export-pdf]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.exportPdf;
+                    try {
+                        const resp = await API.request(`/api/export/pdf/file/${id}`);
+                        const blob = await resp.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `file_report_${id}.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        Toast.success('PDF exported');
+                    } catch (err) {
+                        Toast.error(err.message);
+                    }
                 });
             });
         } catch (err) {

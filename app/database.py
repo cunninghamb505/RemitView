@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS edi_files (
     payee_npi TEXT,
     contact_name TEXT,
     contact_phone TEXT,
-    contact_email TEXT
+    contact_email TEXT,
+    source_type TEXT DEFAULT 'edi',
+    pdf_parsing_notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS claims (
@@ -106,12 +108,52 @@ CREATE TABLE IF NOT EXISTS provider_adjustments (
     FOREIGN KEY (file_id) REFERENCES edi_files(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS claim_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER NOT NULL,
+    flag_type TEXT NOT NULL DEFAULT 'review',
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP,
+    FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key_name TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    permissions TEXT DEFAULT 'read',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+    is_active INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS claim_837_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER,
+    expected_payment REAL,
+    dx_codes TEXT,
+    procedure_codes TEXT,
+    FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_claims_file_id ON claims(file_id);
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(clp_status_code);
 CREATE INDEX IF NOT EXISTS idx_claim_adj_claim_id ON claim_adjustments(claim_id);
 CREATE INDEX IF NOT EXISTS idx_svc_claim_id ON service_lines(claim_id);
 CREATE INDEX IF NOT EXISTS idx_svc_adj_svc_id ON service_adjustments(service_line_id);
 CREATE INDEX IF NOT EXISTS idx_prov_adj_file_id ON provider_adjustments(file_id);
+CREATE INDEX IF NOT EXISTS idx_claims_date_start ON claims(claim_date_start);
+CREATE INDEX IF NOT EXISTS idx_claims_patient ON claims(patient_name);
+CREATE INDEX IF NOT EXISTS idx_claims_claim_id ON claims(clp_claim_id);
+CREATE INDEX IF NOT EXISTS idx_svc_procedure ON service_lines(procedure_code);
+CREATE INDEX IF NOT EXISTS idx_flags_claim_id ON claim_flags(claim_id);
 """
 
 
@@ -121,6 +163,10 @@ def init_db():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    # Insert default settings if not present
+    conn.execute("""
+        INSERT OR IGNORE INTO app_settings (key, value) VALUES ('underpayment_threshold', '70')
+    """)
     conn.commit()
     conn.close()
 
