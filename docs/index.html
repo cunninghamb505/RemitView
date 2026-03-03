@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemitView — Demo</title>
+    <link rel="stylesheet" href="css/styles.css?v=2.1.1">
+</head>
+<body>
+    <div class="demo-banner">
+        DEMO MODE — Pre-loaded sample data. Uploads and edits are disabled.
+        <a href="https://github.com/cunninghamb505/RemitView" target="_blank" style="color: #fff; text-decoration: underline;">Get the full version on GitHub</a>
+    </div>
+
+    <header class="app-header" style="top: 36px;">
+        <div class="header-left">
+            <h1 class="app-title">RemitView</h1>
+        </div>
+        <nav class="main-nav">
+            <a href="#/files" class="nav-link" data-page="files">Files</a>
+            <a href="#/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="#/claims" class="nav-link" data-page="claims">Claims</a>
+            <a href="#/analytics" class="nav-link" data-page="analytics">Analytics</a>
+            <a href="#/compare" class="nav-link" data-page="compare">Compare</a>
+            <a href="#/codes" class="nav-link" data-page="codes">Codes</a>
+            <a href="#/developer" class="nav-link" data-page="developer">Developer</a>
+            <a href="#/settings" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+        <div class="header-search">
+            <input type="search" id="global-search" placeholder="Search claims, patients... ( / )" autocomplete="off">
+        </div>
+        <button id="theme-toggle" class="theme-toggle" title="Toggle theme">
+            <span class="theme-icon-light">&#9788;</span>
+            <span class="theme-icon-dark">&#9790;</span>
+        </button>
+    </header>
+
+    <main id="app-content" class="app-content">
+        <div class="loading-spinner">Loading...</div>
+    </main>
+
+    <footer class="app-footer">
+        <span id="app-version-info"></span>
+    </footer>
+
+    <div id="toast-container" class="toast-container"></div>
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+
+    <script src="js/lib/chart.min.js"></script>
+    <script src="js/components/toast.js?v=2.1.1"></script>
+    <script src="js/components/modal.js?v=2.1.1"></script>
+    <script src="js/components/table.js?v=2.1.1"></script>
+    <script src="js/components/filters.js?v=2.1.1"></script>
+    <script src="js/components/chart.js?v=2.1.1"></script>
+    <script src="js/demo-data.js?v=2.1.1"></script>
+    <script src="js/demo-api.js?v=2.1.1"></script>
+    <script src="js/pages/files.js?v=2.1.1"></script>
+    <script src="js/pages/dashboard.js?v=2.1.1"></script>
+    <script src="js/pages/claims.js?v=2.1.1"></script>
+    <script src="js/pages/claim-detail.js?v=2.1.1"></script>
+    <script src="js/pages/code-lookup.js?v=2.1.1"></script>
+    <script src="js/pages/analytics.js?v=2.1.1"></script>
+    <script src="js/pages/settings.js?v=2.1.1"></script>
+    <script src="js/pages/file-compare.js?v=2.1.1"></script>
+    <script src="js/pages/api-keys.js?v=2.1.1"></script>
+    <script src="js/pages/search-results.js?v=2.1.1"></script>
+    <script src="js/pages/listeners.js?v=2.1.1"></script>
+    <script src="js/pages/developer.js?v=2.1.1"></script>
+    <script src="js/app.js?v=2.1.1"></script>
+</body>
+</html>
