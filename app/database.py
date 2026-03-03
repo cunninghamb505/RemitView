@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS claims (
     claim_date_end TEXT,
     claim_received_date TEXT,
     total_adjustments REAL DEFAULT 0,
+    workflow_status TEXT DEFAULT 'new',
     FOREIGN KEY (file_id) REFERENCES edi_files(id) ON DELETE CASCADE
 );
 
@@ -144,6 +145,31 @@ CREATE TABLE IF NOT EXISTS claim_837_data (
     FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS saved_filters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    filters TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS workflow_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER NOT NULL,
+    old_status TEXT,
+    new_status TEXT NOT NULL,
+    note TEXT,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS claim_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_claims_file_id ON claims(file_id);
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(clp_status_code);
 CREATE INDEX IF NOT EXISTS idx_claim_adj_claim_id ON claim_adjustments(claim_id);
@@ -155,23 +181,30 @@ CREATE INDEX IF NOT EXISTS idx_claims_patient ON claims(patient_name);
 CREATE INDEX IF NOT EXISTS idx_claims_claim_id ON claims(clp_claim_id);
 CREATE INDEX IF NOT EXISTS idx_svc_procedure ON service_lines(procedure_code);
 CREATE INDEX IF NOT EXISTS idx_flags_claim_id ON claim_flags(claim_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_history_claim_id ON workflow_history(claim_id);
+CREATE INDEX IF NOT EXISTS idx_claim_notes_claim_id ON claim_notes(claim_id);
+"""
+
+POST_MIGRATE_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_claims_workflow ON claims(workflow_status);
 """
 
 
 def _migrate(conn: sqlite3.Connection):
     """Add columns that may be missing from older databases."""
-    # Check existing columns on edi_files
-    cursor = conn.execute("PRAGMA table_info(edi_files)")
-    existing_cols = {row[1] for row in cursor.fetchall()}
+    def _get_cols(table):
+        cursor = conn.execute(f"PRAGMA table_info({table})")
+        return {row[1] for row in cursor.fetchall()}
 
     migrations = [
         ("edi_files", "source_type", "TEXT DEFAULT 'edi'"),
         ("edi_files", "pdf_parsing_notes", "TEXT"),
         ("edi_files", "raw_content", "TEXT"),
+        ("claims", "workflow_status", "TEXT DEFAULT 'new'"),
     ]
 
     for table, col, col_def in migrations:
-        if col not in existing_cols:
+        if col not in _get_cols(table):
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}")
 
 
@@ -182,6 +215,7 @@ def init_db():
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
     _migrate(conn)
+    conn.executescript(POST_MIGRATE_INDEXES)
     # Insert default settings if not present
     conn.execute("""
         INSERT OR IGNORE INTO app_settings (key, value) VALUES ('underpayment_threshold', '70')

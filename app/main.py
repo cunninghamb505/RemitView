@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from app.config import APP_NAME, APP_VERSION, APP_AUTHOR, settings as app_settings
 from app.database import init_db
-from app.routers import files, claims, dashboard, codes, export, analytics, flags, settings, compare, api_keys, search, ingest, listeners, developer
+from app.routers import files, claims, dashboard, codes, export, analytics, flags, settings, compare, api_keys, search, ingest, listeners, developer, batch, saved_filters, notes, maintenance
 
 app = FastAPI(title=APP_NAME, version=APP_VERSION)
 
@@ -47,6 +47,10 @@ app.include_router(search.router)
 app.include_router(ingest.router)
 app.include_router(listeners.router)
 app.include_router(developer.router)
+app.include_router(batch.router)
+app.include_router(saved_filters.router)
+app.include_router(notes.router)
+app.include_router(maintenance.router)
 
 # Serve frontend static files — adjust path for PyInstaller bundle
 frontend_dir = app_settings.BASE_DIR / "frontend"

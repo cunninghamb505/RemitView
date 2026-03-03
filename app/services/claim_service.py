@@ -3,9 +3,16 @@ from app.database import get_db
 from app.parser.codes import lookup_status, lookup_group, lookup_carc
 
 
+WORKFLOW_STATUSES = [
+    "new", "in-review", "needs-appeal", "appeal-sent",
+    "follow-up", "resolved", "written-off",
+]
+
+
 def list_claims(
     file_id: int | None = None,
     status: str | None = None,
+    workflow_status: str | None = None,
     search: str | None = None,
     sort_by: str = "id",
     sort_dir: str = "asc",
@@ -24,6 +31,9 @@ def list_claims(
         if status:
             conditions.append("c.clp_status_code = ?")
             params.append(status)
+        if workflow_status:
+            conditions.append("c.workflow_status = ?")
+            params.append(workflow_status)
         if search:
             conditions.append(
                 "(c.clp_claim_id LIKE ? OR c.patient_name LIKE ? OR c.rendering_provider_name LIKE ?)"
@@ -43,6 +53,7 @@ def list_claims(
             "patient": "c.patient_name",
             "provider": "c.rendering_provider_name",
             "date": "c.claim_date_start",
+            "workflow": "c.workflow_status",
         }
         sort_col = allowed_sorts.get(sort_by, "c.id")
         direction = "DESC" if sort_dir.lower() == "desc" else "ASC"
@@ -133,5 +144,39 @@ def get_claim_detail(claim_id: int) -> dict | None:
             result["service_lines"].append(sd)
 
         return result
+    finally:
+        db.close()
+
+
+def update_workflow_status(claim_id: int, new_status: str, note: str = "") -> dict | None:
+    """Update a claim's workflow status and log the change."""
+    if new_status not in WORKFLOW_STATUSES:
+        return None
+    db = get_db()
+    try:
+        claim = db.execute("SELECT workflow_status FROM claims WHERE id = ?", (claim_id,)).fetchone()
+        if not claim:
+            return None
+        old_status = claim["workflow_status"] or "new"
+        db.execute("UPDATE claims SET workflow_status = ? WHERE id = ?", (new_status, claim_id))
+        db.execute(
+            "INSERT INTO workflow_history (claim_id, old_status, new_status, note) VALUES (?, ?, ?, ?)",
+            (claim_id, old_status, new_status, note),
+        )
+        db.commit()
+        return {"claim_id": claim_id, "old_status": old_status, "new_status": new_status}
+    finally:
+        db.close()
+
+
+def get_workflow_history(claim_id: int) -> list[dict]:
+    """Get workflow status history for a claim."""
+    db = get_db()
+    try:
+        rows = db.execute(
+            "SELECT * FROM workflow_history WHERE claim_id = ? ORDER BY changed_at DESC",
+            (claim_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         db.close()

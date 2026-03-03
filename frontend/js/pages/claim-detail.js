@@ -1,22 +1,27 @@
-/* Claim detail page — full drilldown with service lines, adjustments, and flags */
+/* Claim detail page — full drilldown with service lines, adjustments, flags, workflow, and notes */
 const ClaimDetailPage = {
     async render(claimId) {
         const content = document.getElementById('app-content');
         content.innerHTML = '<div class="loading-spinner">Loading claim...</div>';
 
         try {
-            const [claim, flagsData, settings] = await Promise.all([
+            const [claim, flagsData, settings, notesData, historyData] = await Promise.all([
                 API.getClaim(claimId),
                 API.getJSON(`/api/flags?claim_id=${claimId}`),
                 API.getJSON('/api/settings'),
+                API.listNotes(claimId),
+                API.getWorkflowHistory(claimId),
             ]);
 
             const flags = flagsData.flags || [];
+            const notes = notesData.notes || [];
+            const history = historyData.history || [];
             const threshold = parseFloat(settings.underpayment_threshold || '70');
             const charges = claim.clp_total_charge || 0;
             const payment = claim.clp_total_payment || 0;
             const paymentRate = charges > 0 ? (payment / charges * 100) : 100;
             const isUnderpaid = charges > 0 && paymentRate < threshold;
+            const workflowStatus = claim.workflow_status || 'new';
 
             let html = `
                 <a href="#/claims" class="back-link">&larr; Back to Claims</a>
@@ -32,6 +37,22 @@ const ClaimDetailPage = {
                             <button class="btn btn-outline btn-sm" id="export-claim-pdf-btn">PDF</button>
                         </div>
                     </div>
+
+                    <!-- Workflow status -->
+                    <div class="workflow-section">
+                        <label class="workflow-label">Workflow Status:</label>
+                        <select id="workflow-status-select" class="workflow-select">
+                            <option value="new" ${workflowStatus === 'new' ? 'selected' : ''}>New</option>
+                            <option value="in-review" ${workflowStatus === 'in-review' ? 'selected' : ''}>In Review</option>
+                            <option value="needs-appeal" ${workflowStatus === 'needs-appeal' ? 'selected' : ''}>Needs Appeal</option>
+                            <option value="appeal-sent" ${workflowStatus === 'appeal-sent' ? 'selected' : ''}>Appeal Sent</option>
+                            <option value="follow-up" ${workflowStatus === 'follow-up' ? 'selected' : ''}>Follow Up</option>
+                            <option value="resolved" ${workflowStatus === 'resolved' ? 'selected' : ''}>Resolved</option>
+                            <option value="written-off" ${workflowStatus === 'written-off' ? 'selected' : ''}>Written Off</option>
+                        </select>
+                        ${this.workflowBadge(workflowStatus)}
+                    </div>
+
                     <div class="detail-header">
                         ${this.field('Status', `${claim.clp_status_code} - ${claim.status_description}`)}
                         ${this.field('Total Charge', `$${this.fmt(claim.clp_total_charge)}`)}
@@ -72,6 +93,51 @@ const ClaimDetailPage = {
                     </tr>`;
                 }
                 html += '</tbody></table></div></div>';
+            }
+
+            // Notes section
+            html += `<div class="card" style="margin-bottom: 24px;">
+                <div class="section-title" style="margin-top: 0;">Notes</div>
+                <div class="notes-input-row">
+                    <textarea id="note-input" rows="2" placeholder="Add a note..." style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); font-family: var(--font); resize: vertical;"></textarea>
+                    <button class="btn btn-primary btn-sm" id="add-note-btn">Add Note</button>
+                </div>`;
+
+            if (notes.length > 0) {
+                html += '<div class="notes-list">';
+                for (const n of notes) {
+                    html += `<div class="note-item">
+                        <div class="note-content">${this.esc(n.content)}</div>
+                        <div class="note-meta">
+                            <span>${n.created_at || ''}</span>
+                            <button class="btn btn-sm btn-danger" data-delete-note="${n.id}">Delete</button>
+                        </div>
+                    </div>`;
+                }
+                html += '</div>';
+            } else {
+                html += '<p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">No notes yet.</p>';
+            }
+            html += '</div>';
+
+            // Workflow history
+            if (history.length > 0) {
+                html += `<div class="card" style="margin-bottom: 24px;">
+                    <div class="section-title" style="margin-top: 0;">Workflow History</div>
+                    <div class="workflow-timeline">`;
+                for (const h of history) {
+                    html += `<div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <span class="badge badge-info">${this.esc(h.old_status || '?')}</span>
+                            <span style="margin: 0 4px;">&rarr;</span>
+                            <span class="badge badge-primary">${this.esc(h.new_status)}</span>
+                            ${h.note ? `<span class="timeline-note">${this.esc(h.note)}</span>` : ''}
+                            <span class="timeline-date">${h.changed_at || ''}</span>
+                        </div>
+                    </div>`;
+                }
+                html += '</div></div>';
             }
 
             // Claim-level adjustments
@@ -175,6 +241,36 @@ const ClaimDetailPage = {
             }
         });
 
+        // Workflow status change
+        document.getElementById('workflow-status-select').addEventListener('change', (e) => {
+            this.showWorkflowNoteModal(claimId, e.target.value);
+        });
+
+        // Add note
+        document.getElementById('add-note-btn').addEventListener('click', async () => {
+            const input = document.getElementById('note-input');
+            const content = input.value.trim();
+            if (!content) return Toast.error('Please enter a note');
+            try {
+                await API.createNote(parseInt(claimId), content);
+                Toast.success('Note added');
+                this.render(claimId);
+            } catch (err) {
+                Toast.error(err.message);
+            }
+        });
+
+        // Delete note buttons
+        document.querySelectorAll('[data-delete-note]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await API.deleteNote(btn.dataset.deleteNote);
+                    Toast.success('Note deleted');
+                    this.render(claimId);
+                } catch (err) { Toast.error(err.message); }
+            });
+        });
+
         // Resolve flag buttons
         document.querySelectorAll('[data-resolve-flag]').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -195,6 +291,48 @@ const ClaimDetailPage = {
                     await this.render(claimId);
                 } catch (err) { Toast.error(err.message); }
             });
+        });
+    },
+
+    showWorkflowNoteModal(claimId, newStatus) {
+        const overlay = document.getElementById('modal-overlay');
+        overlay.innerHTML = `
+            <div class="modal">
+                <div class="modal-title">Update Workflow Status</div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 12px;">Changing status to <strong>${newStatus}</strong></p>
+                    <label style="font-size: 0.85rem; display: block; margin-bottom: 4px;">Note (optional):</label>
+                    <textarea id="workflow-note-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); font-family: var(--font); resize: vertical;"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="workflow-cancel-btn">Cancel</button>
+                    <button class="btn btn-primary" id="workflow-save-btn">Update</button>
+                </div>
+            </div>
+        `;
+        overlay.classList.remove('hidden');
+
+        document.getElementById('workflow-cancel-btn').addEventListener('click', () => {
+            overlay.classList.add('hidden');
+            this.render(claimId); // Reset select
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.classList.add('hidden');
+                this.render(claimId);
+            }
+        });
+
+        document.getElementById('workflow-save-btn').addEventListener('click', async () => {
+            const note = document.getElementById('workflow-note-input').value;
+            try {
+                await API.updateWorkflow(claimId, newStatus, note);
+                overlay.classList.add('hidden');
+                Toast.success(`Status updated to ${newStatus}`);
+                this.render(claimId);
+            } catch (err) {
+                Toast.error(err.message);
+            }
         });
     },
 
@@ -276,6 +414,20 @@ const ClaimDetailPage = {
         }
         html += '</tbody></table>';
         return html;
+    },
+
+    workflowBadge(status) {
+        const s = status || 'new';
+        const classes = {
+            'new': 'badge-primary',
+            'in-review': 'badge-info',
+            'needs-appeal': 'badge-warning',
+            'appeal-sent': 'badge-warning',
+            'follow-up': 'badge-info',
+            'resolved': 'badge-success',
+            'written-off': 'badge-danger',
+        };
+        return `<span class="badge ${classes[s] || 'badge-primary'}">${s}</span>`;
     },
 
     field(label, value) {

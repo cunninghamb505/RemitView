@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 APP_NAME = "RemitView"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 APP_AUTHOR = "Brandon Cunningham"
 
 
